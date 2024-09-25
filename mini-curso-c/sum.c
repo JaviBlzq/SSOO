@@ -25,4 +25,5 @@ main(int argc, char **argv)
 		sum = sum_two_nums(num1, num2);
 		printf("The sum of %d and %d is %d\n", num1, num2, sum);
 	}
+	exit(EXIT_SUCCESS);
 }
