@@ -8,15 +8,22 @@ enum {
 };
 
 void
-check_args(int argc)
+check_args(int argc, int flagged)
 {
 	if (argc < 2) {
 		fprintf(stderr, "seq: Falta un operando");
 		exit(EXIT_FAILURE);
-	} else if (argc > 4) {
+	} else if (argc > (4 + flagged)) {
 		fprintf(stderr, "seq: Operando extra");
 		exit(EXIT_FAILURE);
 	}
+}
+
+int
+check_flag(char *argv[])
+{
+	return strcmp(argv[1], "-w") == 0;
+	
 }
 
 int
@@ -46,6 +53,7 @@ get_base(char *value)
 
 	if (value == NULL) {
 		fprintf(stderr, "Valor nulo");
+		exit(EXIT_FAILURE);
 	}
 	has_0 = value[0] == '0';
 	correct_len = strlen(value) >= 2;
@@ -74,23 +82,23 @@ string_to_integer(char *value)
 }
 
 void
-parse_args(int argc, char *argv[], int *arr)
+parse_args(int argc, char *argv[], int *arr, int flag)
 {
 	int first_value = FIRST_VALUE;
 	int step = INITIAL_STEP;
 	int last_value;
 
-	if (argc == 2) {
-		last_value = string_to_integer(argv[1]);
+	if (argc == (2 + flag)) {
+		last_value = string_to_integer(argv[1 + flag]);
 
-	} else if (argc == 3) {
-		first_value = string_to_integer(argv[1]);
-		last_value = string_to_integer(argv[2]);
+	} else if (argc == (3 + flag)) {
+		first_value = string_to_integer(argv[1 + flag]);
+		last_value = string_to_integer(argv[2 + flag]);
 
-	} else if (argc == 4) {
-		first_value = string_to_integer(argv[1]);
-		step = string_to_integer(argv[2]);
-		last_value = string_to_integer(argv[3]);
+	} else if (argc == (4 + flag)) {
+		first_value = string_to_integer(argv[1 + flag]);
+		step = string_to_integer(argv[2 + flag]);
+		last_value = string_to_integer(argv[3 + flag]);
 
 	}
 	arr[0] = first_value;
@@ -100,16 +108,29 @@ parse_args(int argc, char *argv[], int *arr)
 }
 
 void
-print_numbers(int *values)
+print_numbers(int *values, int flagged)
 {
 	int first_value = values[0];
 	int step = values[1];
 	int last_value = values[2];
 	int i;
+	int tmp;
+	int max_width = 0;
+	if (flagged) {
+		tmp = last_value;
+		while (tmp > 0) {
+			tmp /= 10;
+			max_width++;
+		}
+	}
 
 	if (correct_values(first_value, last_value)) {
 		for (i = first_value; i <= last_value; i += step) {
-			printf("%d\n", i);
+			if (flagged) {
+                printf("%0*d\n", max_width, i);
+            } else {
+                printf("%d\n", i);
+            }
 		}
 	}
 }
@@ -118,9 +139,11 @@ int
 main(int argc, char *argv[])
 {
 	int arr[3];
+	int flagged;
 
-	check_args(argc);
-	parse_args(argc, argv, arr);
-	print_numbers(arr);
+	flagged = check_flag(argv);
+	check_args(argc, flagged);
+	parse_args(argc, argv, arr, flagged);
+	print_numbers(arr, flagged);
 	exit(EXIT_SUCCESS);
 }
