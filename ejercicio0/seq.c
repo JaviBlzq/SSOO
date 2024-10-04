@@ -59,40 +59,39 @@ get_base(char *value)
 	return base;
 }
 
+int
+string_to_integer(char *value)
+{
+	int base;
+	char *ptr;
+	int last_value;
+
+	base = get_base(value);
+	last_value = strtol(value, &ptr, base);
+	check_pointer(ptr, value);
+
+	return last_value;
+}
+
 void
 parse_args(int argc, char *argv[], int *arr)
 {
 	int first_value = FIRST_VALUE;
 	int step = INITIAL_STEP;
 	int last_value;
-	int base;
-	char *ptr;
 
 	if (argc == 2) {
-		base = get_base(argv[1]);
-		last_value = strtol(argv[1], &ptr, base);
-		check_pointer(ptr, argv[1]);
+		last_value = string_to_integer(argv[1]);
 
 	} else if (argc == 3) {
-		base = get_base(argv[1]);
-		first_value = strtol(argv[1], &ptr, base);
-		check_pointer(ptr, argv[1]);
+		first_value = string_to_integer(argv[1]);
+		last_value = string_to_integer(argv[2]);
 
-		base = get_base(argv[2]);
-		last_value = strtol(argv[2], &ptr, base);
-		check_pointer(ptr, argv[2]);
 	} else if (argc == 4) {
-		base = get_base(argv[1]);
-		first_value = strtol(argv[1], &ptr, base);
-		check_pointer(ptr, argv[1]);
+		first_value = string_to_integer(argv[1]);
+		step = string_to_integer(argv[2]);
+		last_value = string_to_integer(argv[3]);
 
-		base = get_base(argv[2]);
-		step = strtol(argv[2], &ptr, base);
-		check_pointer(ptr, argv[2]);
-
-		base = get_base(argv[3]);
-		last_value = strtol(argv[3], &ptr, base);
-		check_pointer(ptr, argv[3]);
 	}
 	arr[0] = first_value;
 	arr[1] = step;
