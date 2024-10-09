@@ -20,10 +20,15 @@ check_args(int argc, int flagged)
 }
 
 int
-check_flag(char *argv[])
+check_flag(int argc, char *argv[])
 {
-	return strcmp(argv[1], "-w") == 0;
-	
+	int false = 0;
+
+	if (argc > 1) {
+		return strcmp(argv[1], "-w") == 0;
+	}
+	return false;
+
 }
 
 int
@@ -116,6 +121,7 @@ print_numbers(int *values, int flagged)
 	int i;
 	int tmp;
 	int max_width = 0;
+
 	if (flagged) {
 		tmp = last_value;
 		while (tmp > 0) {
@@ -127,10 +133,10 @@ print_numbers(int *values, int flagged)
 	if (correct_values(first_value, last_value)) {
 		for (i = first_value; i <= last_value; i += step) {
 			if (flagged) {
-                printf("%0*d\n", max_width, i);
-            } else {
-                printf("%d\n", i);
-            }
+				printf("%0*d\n", max_width, i);
+			} else {
+				printf("%d\n", i);
+			}
 		}
 	}
 }
@@ -141,7 +147,7 @@ main(int argc, char *argv[])
 	int arr[3];
 	int flagged;
 
-	flagged = check_flag(argv);
+	flagged = check_flag(argc, argv);
 	check_args(argc, flagged);
 	parse_args(argc, argv, arr, flagged);
 	print_numbers(arr, flagged);
