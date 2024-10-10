@@ -5,6 +5,7 @@
 enum {
 	FIRST_VALUE = 1,
 	INITIAL_STEP = 1,
+	MAX_SIZE = 3,
 };
 
 void
@@ -144,7 +145,7 @@ print_numbers(int *values, int flagged)
 int
 main(int argc, char *argv[])
 {
-	int arr[3];
+	int arr[MAX_SIZE];
 	int flagged;
 
 	flagged = check_flag(argc, argv);
