@@ -1,0 +1,17 @@
+Escriba un programa en C para linux que implemente una estructura de datos pila para almacenar strings. Esta estructura debe usar memoria dinámica para los elementos de la pila (i.e. tiene que estar implementada como una lista enlazada). Se puede suponer que las strings que se almacenan en la pila tienen un tamaño máximo de 31 caracteres (sin contar el nulo terminador). 
+
+El tipo abstracto de datos debe estar implementado en un fichero fuente llamado stack.c y un fichero de cabeceras llamado stack.h, que ofrecerá la siguiente interfaz:
+
+    Stack *newstack(void); // crea una pila vacía
+    void push(char *str, Stack *s); // mete un elemento en la pila
+    char* pop(Stack *s);  // saca un elemento de la pila, devuelve NULL si está vacía
+    void destroystack(Stack *s); // libera toda la memoria de una pila y la destruye
+
+
+Push debe hacer una copia del elemento que se mete en la pila, el programador puede hacer lo que quiera con la string original después de meterla en la pila. 
+
+La string que retorna pop debe residir en memoria dinámica y el programador que usa la estructura es el responsable de liberarla.
+
+Adicionalmente, se debe implementar un programa principal llamado test.c que cree una pila e introduzca en ella, en orden alfabético, todas las posibles strings formadas por dos letras minúsculas ASCII (aa, ab, ac ...)  y después las imprima en orden inverso (zz, zy, ...) sacándolas de la pila.
+
+Entrega: se debe entregar un fichero llamado stack.tgz de tipo tar.gz que contenga un directorio llamado stack, con dentro los tres ficheros de C (test.c, stack.c y stack.h).

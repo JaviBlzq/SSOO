@@ -1,0 +1,13 @@
+Implementa un comando en C para Linux myseq que funcione igual que seq(1) con los mismos parámetros, pero sin soportar flags.
+Puede recibir un entero, dos o tres:
+
+       myseq [-w] LAST
+       myseq [-w] FIRST LAST
+       myseq [-w] FIRST INCREMENT LAST
+
+Opcionalmente se puede implementar el flag '-w'.
+
+Entrega el fichero myseq.c
+
+
+
