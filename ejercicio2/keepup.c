@@ -66,7 +66,7 @@ exec_file(int argc, char *argv[])
 			fprintf(stderr, "keepup: cannot execute %s\n", path);
 			exit(VALUE_EXIT_ERROR);
 		default:
-			if (waitpid(pid, &status, 0) == -1) {
+			if (wait(&status) == -1) {
 				perror("wait");
 			}
 
