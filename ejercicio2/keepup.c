@@ -4,7 +4,6 @@
 #include <sys/wait.h>
 #include <string.h>
 
-
 enum {
 	VALUE_EXIT_ERROR = 200,
 
@@ -43,8 +42,6 @@ get_correct_args(int argc, char *argv[])
 	argv[0] = executable;
 }
 
-
-
 int
 exec_file(int argc, char *argv[])
 {
@@ -53,6 +50,7 @@ exec_file(int argc, char *argv[])
 	pid_t pid;
 
 	int tries = 0;
+
 	path = argv[0];
 	get_correct_args(argc, argv);
 	while (1) {
@@ -72,8 +70,8 @@ exec_file(int argc, char *argv[])
 
 			if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
 				return 0;
-				
-			} else if (WEXITSTATUS(status) == VALUE_EXIT_ERROR){
+
+			} else if (WEXITSTATUS(status) == VALUE_EXIT_ERROR) {
 				return 1;
 			} else {
 				tries++;
@@ -88,12 +86,12 @@ exec_file(int argc, char *argv[])
 int
 main(int argc, char *argv[])
 {
-	
+
 	check_args(argc, argv);
 	argv++;
 	argc--;
 	check_path(argv);
-	if (exec_file(argc, argv) == 1){
+	if (exec_file(argc, argv) == 1) {
 		exit(EXIT_FAILURE);
 	}
 	exit(EXIT_SUCCESS);
