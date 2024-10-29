@@ -47,15 +47,13 @@ exec_file(int argc, char *argv[])
 {
 	char *path;
 	int status;
-	pid_t pid;
 
 	int tries = 0;
 
 	path = argv[0];
 	get_correct_args(argc, argv);
 	while (1) {
-		pid = fork();
-		switch (pid) {
+		switch (fork()) {
 		case -1:
 			fprintf(stderr, "fork failed!");
 			exit(EXIT_FAILURE);
