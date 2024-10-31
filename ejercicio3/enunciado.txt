@@ -1,0 +1,21 @@
+Escribe un programa en C para linux idall.c que reciba como parámetros nombres de usuario (al menos uno). Para cada usuario debe ejecutar el comando id sobre él.
+
+El programa padre debe esperar a que todos los procesos hijos terminen, pero deben ejecutar de la forma más concurrente posible.
+
+En caso de que algún hijo termine con fallo, el padre debe terminar con fallo. En otro caso, debe terminar con éxito. En cualquier caso, hay que esperar a todos los procesos hijo antes de terminar.
+
+Ejemplo:
+
+$> idall paurea esoriano
+uid=20043(paurea) gid=2000(pdi) groups=29(audio),201(android),20(dialout),994(kvm),46(plugdev),2000(pdi)
+uid=20109(esoriano) gid=2000(pdi) groups=29(audio),201(android),20(dialout),994(kvm),46(plugdev),2000(pdi)
+$> echo $?
+0
+$> idall paurea popo
+uid=20043(paurea) gid=2000(pdi) groups=29(audio),201(android),20(dialout),994(kvm),46(plugdev),2000(pdi)
+id: 'popo': no such user
+$> echo $?
+1
+$> id
+usage: idall user [user]...
+$>
