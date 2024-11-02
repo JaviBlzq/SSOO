@@ -23,10 +23,9 @@ wait_childs(pid_t* pids, int argc){
     for (narg = 0; narg < argc; narg++) {
         if (waitpid(pids[narg], &status, 0) == -1) {
             perror("waitpid");
-        } else if (WIFEXITED(status) && WEXITSTATUS(status) == VALUE_EXIT_ERROR) {
-            return VALUE_EXIT_ERROR;
-        } 
-        
+        } else if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+            return 1;
+        }
     }
     return 0;
 }
@@ -44,13 +43,12 @@ exec_id(int argc, char *argv[])
         return MALLOC_ERROR;
     }
 
-    char **copy_argv = malloc(MAX_SIZE * sizeof(char *));
+    char **copy_argv = malloc(MAX_SIZE * MAX_USER_LENGTH * sizeof(char));
     if (copy_argv == NULL) {
         fprintf(stderr, "malloc failed");
         free(pids);
         return MALLOC_ERROR;
     }
-
     copy_argv[0] = "id"; 
     
     for (narg = 0; narg < argc; narg++) {
@@ -63,7 +61,6 @@ exec_id(int argc, char *argv[])
             exit(EXIT_FAILURE);
         } else if (pids[narg] == 0) {
             execv(path, copy_argv);
-            
             free(copy_argv);
             free(pids);
             exit(VALUE_EXIT_ERROR);
@@ -90,7 +87,7 @@ main(int argc, char* argv[])
     argc--;
     argv++;
     status = exec_id(argc, argv);
-    if (status == VALUE_EXIT_ERROR){
+    if (status != 0){
         exit(EXIT_FAILURE);
     }
     exit(EXIT_SUCCESS);
