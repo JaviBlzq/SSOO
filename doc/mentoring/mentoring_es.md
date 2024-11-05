@@ -1,4 +1,4 @@
-## Tutoría
+## Tutoría 05/11/24
 
 En la tutoría que se ha tenido con el profesor se han preguntado varias dudas, y se han resuelto todas ellas:
 - **Execv y control de errores**: Se aclara que exec solo retorna si ha sucedido algún fallo al ejecutar exec, ya sea por que el path es incorrecto, no se tienen los permisos necesarios para ejecutar un comando o por la razón que sea. Si execv funciona correctamente, retorna con el estado con el que retorna el comando ejecutado.
