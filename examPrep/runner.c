@@ -55,7 +55,9 @@ wait_childs()
     int pid_winner;
     int status;
     pid_winner = wait(&status);
-    wait(NULL);
+    check_errors(status);
+    wait(&status);
+    check_errors(status);
     return pid_winner;
 }
 char*
