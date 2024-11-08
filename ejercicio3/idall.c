@@ -59,10 +59,7 @@ exec_id(int argc, char *argv[])
 		copy_argv[1] = argv[narg];
 		pids[narg] = fork();
 		if (pids[narg] == -1) {
-			fprintf(stderr, "fork failed!\n");
-			free(copy_argv);
-			free(pids);
-			exit(EXIT_FAILURE);
+			err(EXIT_FAILURE, "fork:");
 		} else if (pids[narg] == 0) {
 			execv(path, copy_argv);
 			free(copy_argv);
