@@ -8,7 +8,6 @@
 enum {
     MaxNamesize = 255,
     Maxrepetitions = 1000,
-    MaxFilesize = 10 * 1024,
     MaxReadSize = 255,
 };
 
@@ -56,51 +55,101 @@ create_name(char* name, char* new_name, int i)
     snprintf(new_name, MaxNamesize, "%s.%d",name, i);
 }
 
-void
-write_copies(char *name, int rep, char* txt)
-{
-    int i;
-    char new_name[MaxNamesize + 1];
+int
+open_file(char* file_name){
     
-    for (i=0; i<=rep; i++){
-        new_name[0] = '\0';
-        create_name(name, new_name, i);
-        
-        fprintf(stderr, "%s\n", new_name);
+    int fd;
+    fd = open(file_name, O_CREAT | O_WRONLY | O_TRUNC, 0666); /*read-write*/
+    if (fd == -1){
+        err(EXIT_FAILURE, "error open file. ");
     }
+    return fd;
     
 }
 
+void
+write_file(int fd, char*txt, int rep, int size_readed){
+    int j;
+    int size_written;
+    for (j=1; j <= rep; j++){
+        
+        size_written = write(fd, txt, size_readed);
+        if (size_written < size_readed){
+            err(EXIT_FAILURE, "can not write");
+        }
+    }
+}
+
+void
+write_copies(int rep, char* txt, int size_readed, int* fds)
+{
+    int i;
+    for (i=0; i<rep;i++){
+        /*write*/
+        write_file(fds[i], txt, i+1, size_readed); 
+    }
+}
+    
+
+
+void
+open_fds(char *name, int* fds, int rep)
+{
+    int i;
+    int fd;
+    char new_name[MaxNamesize + 1];
+    for (i=0; i<rep; i++){
+        new_name[0] = '\0';
+        create_name(name, new_name, i+1);
+        
+        fd = open_file(new_name);
+        fds[i] = fd;
+    }
+}
+
+void
+close_all(int* fds, int rep){
+    int i;
+    for (i=0; i<rep; i++){
+        close(fds[i]);
+    }
+
+}
 
 void
 do_copies(char* path, int rep)
 {
     char* name = get_name(path);
+    int *all_fds = malloc(sizeof(int) * Maxrepetitions);
     int fd;
     int size_readed;
     
-    char txt[MaxReadSize];
+    char txt[MaxReadSize+ 1];
 
     fd = open(path, O_RDONLY);
     if (fd == -1){
         err(EXIT_FAILURE, "file doesnt exist");
     }
     
-    fprintf(stderr, "estamos aqui\n");
-    size_readed = read(fd, txt, MaxReadSize);
+    open_fds(name, all_fds, rep);
     
-    while (size_readed != 0){
+    while (1){
+        memset(txt, 0, sizeof(txt));
+        size_readed = read(fd, txt, MaxReadSize);
         if (size_readed == -1){
             err(EXIT_FAILURE, "reader failed:");
+        } else if (size_readed == 0){
+            break;
         }
-        write_copies(name, rep, txt);
-        size_readed = read(fd, txt, MaxReadSize);
+        write_copies(rep, txt, size_readed, all_fds);
     }
 
 
     if (close(fd) == -1){
         err(EXIT_FAILURE, "close failed:");
     }
+    close_all(all_fds, rep);
+    free(all_fds);
 
 }
 

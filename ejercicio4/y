@@ -1,0 +1,12 @@
+El permiso SUID o bit setuid hace que cuando se ha establecido ejecución, el proceso resultante asumirá la identidad del usuario dado en la clase de usuario (propietario del elemento).
+
+El permiso SGID o bit setgid hace que cuando se ha establecido ejecución, el proceso resultante asumirá la identidad del grupo dado en la clase de grupo (propietario del elemento).
+ Cuando setgid ha sido aplicado a un directorio, todos los nuevos archivos creados debajo de este directorio heredarán el grupo propietario de este mismo directorio. 
+ Cuando se omite establecer setgid, el comportamiento predeterminado es asignar el mismo grupo del usuario utilizado para crear nuevos archivos o directorios.
+
+El bit pegajoso (sticky bit) significa que un usuario sólo podrá modificar y eliminar archivos y directorios subordinados dentro de un directorio que le pertenezca.
+ En ausencia de éste, se aplican las reglas generales y el derecho de acceso de escritura en si sólo permite al usuario crear, modificar y eliminar archivos y directorios subordinados dentro de un directorio. L
+ Los directorios a los cuales se les ha establecido bit pegajoso restringen las modificaciones de los usuarios a sólo adjuntar contenido, 
+ manteniendo control total sobre sus propios archivos y permitiendo crear nuevos archivos; 
+ sólo permitirá adjuntar o añadir contenido a los archivos de otros usuarios. 
+ El bit pegajoso es utilizado en directorios como /tmp y /var/spool/mail.
