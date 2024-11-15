@@ -2,12 +2,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <err.h>
 
 enum {
-	VALUE_EXIT_ERROR = 200,
-	MALLOC_ERROR = 100,
-	MAX_SIZE = 2,
-	MAX_USER_LENGTH = 255,
+	ValueError = 200,
+	MallocError = 100,
+	MaxSize = 2,
+	MaxUserLength = 255,
 };
 
 int
@@ -43,15 +44,15 @@ exec_id(int argc, char *argv[])
 
 	if (pids == NULL) {
 		fprintf(stderr, "malloc failed");
-		return MALLOC_ERROR;
+		return MallocError;
 	}
 
-	copy_argv = malloc(MAX_SIZE * MAX_USER_LENGTH * sizeof(char));
+	copy_argv = malloc(MaxSize * MaxUserLength * sizeof(char));
 
 	if (copy_argv == NULL) {
 		fprintf(stderr, "malloc failed");
 		free(pids);
-		return MALLOC_ERROR;
+		return MallocError;
 	}
 	copy_argv[0] = "id";
 
@@ -64,7 +65,7 @@ exec_id(int argc, char *argv[])
 			execv(path, copy_argv);
 			free(copy_argv);
 			free(pids);
-			exit(VALUE_EXIT_ERROR);
+			exit(ValueError);
 		}
 	}
 
