@@ -120,7 +120,7 @@ void
 do_copies(char* path, int rep)
 {
     char* name = get_name(path);
-    int *all_fds = malloc(sizeof(int) * Maxrepetitions);
+    int *all_fds = malloc(sizeof(int) * rep);
     int fd;
     int size_readed;
     
