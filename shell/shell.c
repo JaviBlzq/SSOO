@@ -3,6 +3,7 @@
 #include <err.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 enum {
     Stdin = 0,
@@ -11,6 +12,8 @@ enum {
     Maxpath = 255,
     Success = 1,
     Failure = 0,
+    Maxargs = 127,
+    Childfailure = 200,
 };
 
 int
@@ -107,23 +110,113 @@ printline(void)
 {
     char cwd[Maxpath];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        printf("%s", cwd);
+        printf("%s$ ", cwd);
     } else {
         warn("getcwd() error"); 
     }
 }
 
-int
-run_executable_cwd()
+void 
+get_args(char* line, char** args) 
 {
-    return Failure;
+    char line_copy[Maxlinelen];
+    char *token;
+    char *saveptr;
+    int i = 0;
+
+    
+    strncpy(line_copy, line, sizeof(line_copy) - 1);
+    line_copy[sizeof(line_copy) - 1] = '\0'; 
+
+    token = strtok_r(line_copy, " ", &saveptr);
+    while (token != NULL && i < Maxargs) {
+        args[i] = malloc(strlen(token) + 1); 
+        if (args[i] == NULL) {
+            perror("malloc");
+            exit(EXIT_FAILURE);
+        }
+        strcpy(args[i], token);         
+        token = strtok_r(NULL, " ", &saveptr);
+        i++;
+    }
+    args[i] = NULL;
+}
+
+void free_args(char** args) 
+{
+    for (int i = 0; args[i] != NULL; i++) {
+        free(args[i]);
+    }
+}
+
+void 
+create_path(const char* filename, char* path) {
+    
+    strcpy(path, "./");
+    strcat(path, filename);
+}
+
+int
+run_executable_cwd(char* line, int is_waitable)
+{
+    char** args = malloc((Maxargs + 1) * sizeof(char*));;
+    char path[Maxlinelen + 3];
+    int status;
+
+    get_args(line, args);
+
+    int pid = fork();
+    switch (pid)
+    {
+        case -1:
+            warn("fork");
+            return Failure;
+        case 0:
+            memset(path, 0, Maxlinelen);
+            create_path(args[0], path);
+            execv(path, args);
+            exit(Childfailure);
+        default:
+            if (is_waitable){
+                wait(&status);
+            }
+            if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
+				return Success;
+
+			} else if (WEXITSTATUS(status) == Childfailure) {
+				return Failure;
+            }
+
+    }
+    
+    free_args(args);
+    free(args);
+    return Success;
+}
+
+int
+check_waitable(char* line)
+{
+    int len_line = strlen(line);
+    if (len_line > 0){
+        char last_char = line[len_line - 1];
+        return (last_char != '&');
+    }
+    return Success;
+}
+
+int
+run_exe_path()
+{
+    
 }
 
 void
 run_command(char* line){
-    fprintf(stderr, "Linea %s\n", line);
-    if (run_executable_cwd(line) == Failure){
-        
+    int is_waitable = check_waitable(line);
+    if (run_executable_cwd(line, is_waitable) == Failure){
+        fprintf(stderr, "PROBANDO QUE NO ESTA EN .\n");
+        run_exe_path(line);
     }
     
     
@@ -146,7 +239,7 @@ sustitute_varenv(char*line, char* output_line, ssize_t output_size)
     while (token != NULL) {
         if (token[0] == '$') {
             env_value = getenv(++token);
-            if (env_value) {
+            if (env_value != NULL) {
                 if (strlen(env_value) + strlen(output_line) + 1 > remaining_size) {
                     warn("Output buffer overflow");
                     return;
@@ -187,19 +280,14 @@ run_shell(void)
         memset(line, 0, Maxlinelen);
         memset(full_line, 0, Maxlinelen);
         printline();
-        printf("$ ");
+        
         fgets(line, Maxlinelen, stdin);
         treat_line(line);
         if (do_builtins(line) != Success){
             sustitute_varenv(line, full_line, MaxOutputlinelen);
             run_command(full_line);
         }
-        /*if (is_builtin(line)){
-            do builtin
-            printf("is builtin");
-        } else {
-            printf("hello");
-        }*/
+        
     }
     free(full_line);
 }
