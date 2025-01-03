@@ -159,7 +159,7 @@ create_path(const char* filename, char* path) {
 int
 run_executable_cwd(char* line, int is_waitable)
 {
-    char** args = malloc((Maxargs + 1) * sizeof(char*));;
+    char** args = malloc((Maxargs + 1) * sizeof(char*));
     char path[Maxlinelen + 3];
     int status;
 
@@ -187,6 +187,30 @@ run_executable_cwd(char* line, int is_waitable)
 				return Failure;
             }
 
+    }get_args(line, args);
+
+    int pid = fork();
+    switch (pid)
+    {
+        case -1:
+            warn("fork");
+            return Failure;
+        case 0:
+            memset(path, 0, Maxlinelen);
+            create_path(args[0], path);
+            execv(path, args);
+            exit(Childfailure);
+        default:
+            if (is_waitable){
+                wait(&status);
+            }
+            if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
+				return Success;
+
+			} else if (WEXITSTATUS(status) == Childfailure) {
+				return Failure;
+            } 
+
     }
     
     free_args(args);
@@ -206,9 +230,37 @@ check_waitable(char* line)
 }
 
 int
-run_exe_path()
+run_exe_path(char* line, int is_waitable)
 {
-    
+    char** args = malloc((Maxargs + 1) * sizeof(char*));
+    int status;
+    get_args(line, args);
+
+    int pid = fork();
+    switch (pid)
+    {
+        case -1:
+            warn("fork");
+            return Failure;
+        case 0:
+            h);
+            execv(path, args);
+            exit(Childfailure);
+        default:
+            if (is_waitable){
+                wait(&status);
+            }
+            if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
+				return Success;
+
+			} else if (WEXITSTATUS(status) == Childfailure) {
+				return Failure;
+            }
+
+    }
+    free_args(args);
+    free(args);
+    return Success;
 }
 
 void
@@ -216,7 +268,7 @@ run_command(char* line){
     int is_waitable = check_waitable(line);
     if (run_executable_cwd(line, is_waitable) == Failure){
         fprintf(stderr, "PROBANDO QUE NO ESTA EN .\n");
-        run_exe_path(line);
+        run_exe_path(line, is_waitable);
     }
     
     
