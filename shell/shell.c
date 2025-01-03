@@ -230,6 +230,11 @@ check_waitable(char* line)
 }
 
 int
+do_child(char** args){
+
+}
+
+int
 run_exe_path(char* line, int is_waitable)
 {
     char** args = malloc((Maxargs + 1) * sizeof(char*));
@@ -243,12 +248,11 @@ run_exe_path(char* line, int is_waitable)
             warn("fork");
             return Failure;
         case 0:
-            h);
-            execv(path, args);
-            exit(Childfailure);
+            do_child(args);
+            
         default:
             if (is_waitable){
-                wait(&status);
+                waitpid(pid, &status, 0);
             }
             if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
 				return Success;
