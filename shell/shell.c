@@ -135,7 +135,7 @@ get_args(char* line, char** args)
             perror("malloc");
             exit(EXIT_FAILURE);
         }
-        strcpy(args[i], token);         
+        strcpy(args[i], token);        
         token = strtok_r(NULL, " ", &saveptr);
         i++;
     }
@@ -187,30 +187,6 @@ run_executable_cwd(char* line, int is_waitable)
 				return Failure;
             }
 
-    }get_args(line, args);
-
-    int pid = fork();
-    switch (pid)
-    {
-        case -1:
-            warn("fork");
-            return Failure;
-        case 0:
-            memset(path, 0, Maxlinelen);
-            create_path(args[0], path);
-            execv(path, args);
-            exit(Childfailure);
-        default:
-            if (is_waitable){
-                wait(&status);
-            }
-            if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
-				return Success;
-
-			} else if (WEXITSTATUS(status) == Childfailure) {
-				return Failure;
-            } 
-
     }
     
     free_args(args);
@@ -229,11 +205,50 @@ check_waitable(char* line)
     return Success;
 }
 
-int
-do_child(char** args){
+int 
+do_child(char** args) {
+    char* path_env = getenv("PATH");
+    char* path_copy;
+    char* dir;
+    char* saveptr;
 
+    if (path_env == NULL) {
+        fprintf(stderr, "ERROR: PATH no está definido.\n");
+        return Failure;
+    }
+
+    
+    path_copy = strdup(path_env);
+    
+
+    dir = strtok_r(path_copy, ":", &saveptr);
+
+    // Iterar sobre cada directorio en $PATH
+    while (dir != NULL) {
+        // Crear el camino completo al ejecutable
+        char* full_path = malloc(strlen(dir) + strlen(args[0]) + 2);  // +2 por el '/' y '\0'
+        sprintf(full_path, "%s/%s", dir, args[0]);
+
+        // Intentar ejecutar el archivo con execv (sin búsqueda en $PATH)
+        if (execv(full_path, args) == -1) {
+            // Si falla, continuar con el siguiente directorio en $PATH
+            free(full_path);
+        } else {
+            // Si execv tiene éxito, no llegamos aquí
+            free(path_copy);
+            free(full_path);
+            return Success;
+        }
+
+        // Avanzar al siguiente directorio
+        dir = strtok_r(NULL, ":", &saveptr);
+    }
+
+    // Si no se encontró el ejecutable en ninguna de las rutas
+    fprintf(stderr, "ERROR: No se pudo encontrar el ejecutable %s en el PATH.\n", args[0]);
+    free(path_copy);
+    return Failure;
 }
-
 int
 run_exe_path(char* line, int is_waitable)
 {
@@ -258,6 +273,7 @@ run_exe_path(char* line, int is_waitable)
 				return Success;
 
 			} else if (WEXITSTATUS(status) == Childfailure) {
+                fprintf(stderr, "exec fallo");
 				return Failure;
             }
 
@@ -271,7 +287,6 @@ void
 run_command(char* line){
     int is_waitable = check_waitable(line);
     if (run_executable_cwd(line, is_waitable) == Failure){
-        fprintf(stderr, "PROBANDO QUE NO ESTA EN .\n");
         run_exe_path(line, is_waitable);
     }
     
@@ -279,7 +294,7 @@ run_command(char* line){
 }
 
 void
-sustitute_varenv(char*line, char* output_line, ssize_t output_size)
+sustitute_varenv(char* line, char* output_line, ssize_t output_size)
 {
     char line_copy[Maxlinelen];
     char *token, *saveptr;
@@ -302,13 +317,10 @@ sustitute_varenv(char*line, char* output_line, ssize_t output_size)
                 }
                 strncat(output_line, env_value, remaining_size);
                 remaining_size -= strlen(env_value);
-            } else {
-                if (strlen(token) + strlen(output_line) + 1 > remaining_size) {
-                    warn("Output buffer overflow");
-                    return;
-                }
-                strncat(output_line, token, remaining_size);
-                remaining_size -= strlen(token);
+            } else {        
+                fprintf(stderr, "error: var %s does not exist.\n", token);
+                output_line[0] = '\0'; 
+                return;
             }
         } else {
             if (strlen(token) + strlen(output_line) + 1 > remaining_size) {
