@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 enum {
     Stdin = 0,
@@ -194,15 +195,14 @@ run_executable_cwd(char* line, int is_waitable)
     return Success;
 }
 
-int
-check_waitable(char* line)
-{
+int 
+check_waitable(char* line) {
     int len_line = strlen(line);
-    if (len_line > 0){
-        char last_char = line[len_line - 1];
-        return (last_char != '&');
+    if (len_line > 0 && line[len_line - 1] == '&') {
+        line[len_line - 1] = '\0'; 
+        return 0; 
     }
-    return Success;
+    return 1;  
 }
 
 int 
@@ -283,13 +283,142 @@ run_exe_path(char* line, int is_waitable)
     return Success;
 }
 
-void
-run_command(char* line){
-    int is_waitable = check_waitable(line);
-    if (run_executable_cwd(line, is_waitable) == Failure){
-        run_exe_path(line, is_waitable);
+int parse_redirection(char* line, char* command, char* input_file, char* output_file, int* append) {
+    char *token, *saveptr;
+    int input_redirect = 0;
+    int output_redirect = 0;
+    *append = 0;
+
+    strcpy(command, "");
+    input_file[0] = '\0';
+    output_file[0] = '\0';
+
+    token = strtok_r(line, " ", &saveptr);
+    while (token != NULL) {
+        if (strcmp(token, ">") == 0 || strcmp(token, ">>") == 0) {
+            output_redirect = 1;
+            *append = (strcmp(token, ">>") == 0);
+            token = strtok_r(NULL, " ", &saveptr);
+            if (token != NULL) {
+                strcpy(output_file, token);
+            } else {
+                fprintf(stderr, "error: missing output file after '%s'\n", *append ? ">>" : ">");
+                return Failure;
+            }
+        } else if (strcmp(token, "<") == 0) {
+            input_redirect = 1;
+            token = strtok_r(NULL, " ", &saveptr);
+            if (token != NULL) {
+                strcpy(input_file, token);
+            } else {
+                fprintf(stderr, "error: missing input file after '<'\n");
+                return Failure;
+            }
+        } else {
+            if (output_redirect || input_redirect) {
+                fprintf(stderr, "error: invalid syntax after redirection operator\n");
+                return Failure;
+            }
+            strcat(command, token);
+            strcat(command, " ");
+        }
+        token = strtok_r(NULL, " ", &saveptr);
     }
-    
+
+    // Trim final space from command
+    size_t len = strlen(command);
+    if (len > 0 && command[len - 1] == ' ') {
+        command[len - 1] = '\0';
+    }
+
+    return Success;
+}
+
+int 
+setup_redirection(const char* input_file, const char* output_file, int append, int is_waitable) {
+    int fd;
+
+    // Redirigir entrada
+    if (input_file[0] != '\0') {
+        fd = open(input_file, O_RDONLY);
+        if (fd < 0) {
+            perror("open input file");
+            return Failure;
+        }
+        dup2(fd, STDIN_FILENO);
+        close(fd);
+    } else {
+        if (!is_waitable) {
+            // Redirigir entrada a /dev/null para comandos en segundo plano
+            fd = open("/dev/null", O_RDONLY);
+            if (fd < 0) {
+                perror("open /dev/null");
+                return Failure;
+            }
+            dup2(fd, STDIN_FILENO);
+            close(fd);
+        }
+    }
+
+    // Redirigir salida
+    if (output_file[0] != '\0') {
+        int flags = O_WRONLY | O_CREAT;
+        if (append) {
+            flags |= O_APPEND;
+        } else {
+            flags |= O_TRUNC;
+        }
+
+        fd = open(output_file, flags, 0644);
+        if (fd < 0) {
+            perror("open output file");
+            return Failure;
+        }
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+    }
+
+    return Success;
+}
+
+
+void 
+run_command(char* line) {
+    int status;
+    int is_waitable = check_waitable(line);
+
+    char command[Maxlinelen] = "";
+    char input_file[Maxpath] = "";
+    char output_file[Maxpath] = "";
+    int append = 0;
+
+    if (parse_redirection(line, command, input_file, output_file, &append) == Failure) {
+        return;
+    }
+
+    int pid = fork();
+    if (pid == -1) {
+        warn("fork");
+        return;
+    }
+
+    if (pid == 0) {
+        if (setup_redirection(input_file, output_file, append, is_waitable) == Failure) {
+            exit(Childfailure);
+        }
+
+        if (run_executable_cwd(command, is_waitable) == Failure) {
+            if (run_exe_path(command, is_waitable) == Failure) {
+                exit(Childfailure);
+            }
+        }
+        exit(Success);
+    }
+
+    waitpid(pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != Success) {
+        fprintf(stderr, "error: command failed\n");
+    }
     
 }
 
@@ -339,24 +468,34 @@ sustitute_varenv(char* line, char* output_line, ssize_t output_size)
     }
 }
 
-void
-run_shell(void)
-{
+void run_shell(void) {
     char line[Maxlinelen];
     char* full_line = (char*)malloc(MaxOutputlinelen * sizeof(char));
-    while (1){
-        memset(line, 0, Maxlinelen);
-        memset(full_line, 0, Maxlinelen);
-        printline();
-        
-        fgets(line, Maxlinelen, stdin);
+    int is_interactive = isatty(STDIN_FILENO);
+
+    while (1) {
+        if (is_interactive) {
+            printline();  
+        }
+
+        if (fgets(line, Maxlinelen, stdin) == NULL) {
+            if (feof(stdin)) {
+                break;  
+            } else {
+                warn("Error reading from stdin");
+                
+            }
+        }
+
         treat_line(line);
-        if (do_builtins(line) != Success){
+        memset(full_line, 0, MaxOutputlinelen);
+
+        if (do_builtins(line) != Success) {
             sustitute_varenv(line, full_line, MaxOutputlinelen);
             run_command(full_line);
         }
-        
     }
+
     free(full_line);
 }
 
