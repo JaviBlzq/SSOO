@@ -390,7 +390,7 @@ setup_redirection(const char *input_file, const char *output_file,
 	}
 
 	if (output_file[0] != '\0') {
-		int flags = O_WRONLY | O_CREAT | O_APPEND;
+		int flags = O_WRONLY | O_CREAT | O_TRUNC;
 
 		fd = open(output_file, flags, 0644);
 		if (fd < 0) {
