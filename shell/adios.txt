@@ -1,7 +1,1 @@
-total 220
--rw-rw-r-- 1 javiblzqz javiblzqz      0 ene 15 18:01 adios.txt
--rw-rw-r-- 1 javiblzqz javiblzqz      6 ene 15 17:13 hola.txt
--rwxrwxr-x 1 javiblzqz javiblzqz  30432 ene 15 18:00 shell
--rw-rw-r-- 1 javiblzqz javiblzqz   9911 ene 15 18:00 shell.c
--rw-rw-r-- 1 javiblzqz javiblzqz  30888 ene 15 18:00 shell.o
--rw-rw-r-- 1 javiblzqz javiblzqz 140208 ene  3 09:52 shl.pdf
+ 1  2 11

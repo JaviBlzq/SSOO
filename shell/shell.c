@@ -7,7 +7,6 @@
 #include <fcntl.h>
 
 enum {
-	Stdin = 0,
 	Maxlinelen = 255,
 	MaxOutputlinelen = 1024,
 	Maxpath = 255,
@@ -23,18 +22,18 @@ correct_args(int argc)
 	return argc == 1;
 }
 
-char *get_token(char *str_to_tokenize, char *delim, char **saveptr) {
-    char *token;
+char *
+get_token(char *str_to_tokenize, const char *delim, char **saveptr)
+{
+	char *token;
 
-    // Obtener el siguiente token
-    token = strtok_r(str_to_tokenize, delim, saveptr);
+	token = strtok_r(str_to_tokenize, delim, saveptr);
 
-    // Saltar tokens vacíos (debido a espacios o tabuladores consecutivos)
-    while (token && *token == '\0') {
-        token = strtok_r(NULL, delim, saveptr);
-    }
+	while (token && *token == '\0') {
+		token = strtok_r(NULL, delim, saveptr);
+	}
 
-    return token;
+	return token;
 }
 
 void
@@ -43,8 +42,12 @@ treat_line(char *line)
 	if (line == NULL) {
 		errx(EXIT_FAILURE, "line not valid");
 	}
-	line[strlen(line) - 1] = '\0';
 
+	size_t len = strlen(line);
+
+	if (len > 0 && line[len - 1] == '\n') {
+		line[len - 1] = '\0';
+	}
 }
 
 void
@@ -75,7 +78,7 @@ do_cd(char *line)
 					change_dir(home);
 					return Success;
 				} else {
-					fprintf(stderr, "home not founded");
+					fprintf(stderr, "home not found\n");
 					return Failure;
 				}
 			}
@@ -104,7 +107,6 @@ create_variables(char *line)
 		}
 	}
 	return Failure;
-
 }
 
 int
@@ -114,6 +116,7 @@ do_builtins(char *line)
 
 	strncpy(line_copy, line, sizeof(line_copy));
 	line_copy[sizeof(line_copy) - 1] = '\0';
+
 	if (do_cd(line_copy) == Success
 	    || create_variables(line_copy) == Success) {
 		return Success;
@@ -134,7 +137,8 @@ printline(void)
 }
 
 void
-get_args(char *line, char **args)
+get_args(const char *line, char argbuf[Maxargs][Maxlinelen],
+	 char *args[Maxargs + 1])
 {
 	char line_copy[Maxlinelen];
 	char *token;
@@ -146,30 +150,18 @@ get_args(char *line, char **args)
 
 	token = get_token(line_copy, " \t", &saveptr);
 	while (token != NULL && i < Maxargs) {
-		args[i] = malloc(strlen(token) + 1);
-		if (args[i] == NULL) {
-			perror("malloc");
-			exit(EXIT_FAILURE);
-		}
-		strcpy(args[i], token);
-		token = get_token(NULL, " \t", &saveptr);
+		strncpy(argbuf[i], token, Maxlinelen - 1);
+		argbuf[i][Maxlinelen - 1] = '\0';
+		args[i] = argbuf[i];
 		i++;
+		token = get_token(NULL, " \t", &saveptr);
 	}
 	args[i] = NULL;
 }
 
 void
-free_args(char **args)
-{
-	for (int i = 0; args[i] != NULL; i++) {
-		free(args[i]);
-	}
-}
-
-void
 create_path(const char *filename, char *path)
 {
-
 	strcpy(path, "./");
 	strcat(path, filename);
 }
@@ -177,23 +169,21 @@ create_path(const char *filename, char *path)
 int
 run_executable_cwd(char *line, int is_waitable)
 {
-	char **args = malloc((Maxargs + 1) * sizeof(char *));
+	char argbuf[Maxargs][Maxlinelen];
+	char *args[Maxargs + 1];
 	char path[Maxlinelen + 3];
 	int status;
-    int pid;
-	
-    get_args(line, args);
+	int pid;
+
+	get_args(line, argbuf, args);
 
 	pid = fork();
-
 	switch (pid) {
 	case -1:
 		warn("fork");
-		free_args(args);
-		free(args);
 		return Failure;
 	case 0:
-		memset(path, 0, Maxlinelen);
+		memset(path, 0, sizeof(path));
 		create_path(args[0], path);
 		execv(path, args);
 		exit(Childfailure);
@@ -202,20 +192,11 @@ run_executable_cwd(char *line, int is_waitable)
 			wait(&status);
 		}
 		if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
-			free_args(args);
-			free(args);
 			return Success;
-
 		} else if (WEXITSTATUS(status) == Childfailure) {
-			free_args(args);
-			free(args);
 			return Failure;
 		}
-
 	}
-
-	free_args(args);
-	free(args);
 	return Success;
 }
 
@@ -232,77 +213,67 @@ check_waitable(char *line)
 }
 
 int
-do_child(char **args)
+do_child(char *args[Maxargs + 1])
 {
 	char *path_env = getenv("PATH");
-	char *path_copy;
-	char *dir;
-	char *saveptr = NULL;
-	char *full_path;
 
 	if (path_env == NULL) {
-		fprintf(stderr, "error: path is not defined\n");
+		fprintf(stderr, "error: PATH is not defined\n");
 		return Failure;
 	}
 
-	path_copy = strdup(path_env);
+	char path_copy[MaxOutputlinelen];
+
+	strncpy(path_copy, path_env, sizeof(path_copy) - 1);
+	path_copy[sizeof(path_copy) - 1] = '\0';
+
+	char *dir;
+	char *saveptr = NULL;
+
 	dir = get_token(path_copy, ":", &saveptr);
 
 	while (dir != NULL) {
+		char full_path[Maxlinelen * 2];
 
-		full_path = malloc((strlen(dir) + strlen(args[0]) + 2) * sizeof(char));	// +2 por el '/' y '\0'
-
-		sprintf(full_path, "%s/%s", dir, args[0]);
+		snprintf(full_path, sizeof(full_path), "%s/%s", dir, args[0]);
 
 		execv(full_path, args);
-		free(full_path);
-
 		dir = get_token(NULL, ":", &saveptr);
 	}
-	free(path_copy);
 	return Failure;
 }
 
 int
 run_exe_path(char *line, int is_waitable)
 {
-	char **args = malloc((Maxargs + 1) * sizeof(char *));
+	char argbuf[Maxargs][Maxlinelen];
+	char *args[Maxargs + 1];
 	int status;
 	int pid;
 
-	get_args(line, args);
+	get_args(line, argbuf, args);
 
 	pid = fork();
-
 	switch (pid) {
 	case -1:
 		warn("fork");
-		free_args(args);
-		free(args);
 		return Failure;
 	case 0:
-		do_child(args);
-		free_args(args);
-		free(args);
+		if (do_child(args) == Failure) {
+			exit(Childfailure);
+		}
+		exit(Childfailure);	
 	default:
 		if (is_waitable) {
 			waitpid(pid, &status, 0);
 		}
 		if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
-			free_args(args);
-			free(args);
 			return Success;
-
 		} else if (WEXITSTATUS(status) == Childfailure) {
-			fprintf(stderr, "exec failed");
-			free_args(args);
-			free(args);
+			
 			return Failure;
 		}
-
 	}
-	free_args(args);
-	free(args);
 	return Success;
 }
 
@@ -311,12 +282,12 @@ parse_redirection(char *line, char *command, char *input_file,
 		  char *output_file)
 {
 	char *token;
-    char *saveptr;
+	char *saveptr;
 	int input_redirect = 0;
 	int output_redirect = 0;
-    size_t len;
+	size_t len;
 
-	strcpy(command, "");
+	command[0] = '\0';
 	input_file[0] = '\0';
 	output_file[0] = '\0';
 
@@ -326,7 +297,8 @@ parse_redirection(char *line, char *command, char *input_file,
 			output_redirect = 1;
 			token = get_token(NULL, " \t", &saveptr);
 			if (token != NULL) {
-				strcpy(output_file, token);
+				strncpy(output_file, token, Maxpath - 1);
+				output_file[Maxpath - 1] = '\0';
 			} else {
 				fprintf(stderr,
 					"error: missing output file after '>'\n");
@@ -336,7 +308,8 @@ parse_redirection(char *line, char *command, char *input_file,
 			input_redirect = 1;
 			token = get_token(NULL, " \t", &saveptr);
 			if (token != NULL) {
-				strcpy(input_file, token);
+				strncpy(input_file, token, Maxpath - 1);
+				input_file[Maxpath - 1] = '\0';
 			} else {
 				fprintf(stderr,
 					"error: missing input file after '<'\n");
@@ -348,18 +321,28 @@ parse_redirection(char *line, char *command, char *input_file,
 					"error: invalid syntax after redirection operator\n");
 				return Failure;
 			}
-			strcat(command, token);
-			strcat(command, " ");
+			strncat(command, token,
+				Maxlinelen - 1 - strlen(command));
+			strncat(command, " ", Maxlinelen - 1 - strlen(command));
 		}
 		token = get_token(NULL, " \t", &saveptr);
 	}
 
 	len = strlen(command);
-
 	if (len > 0 && command[len - 1] == ' ') {
 		command[len - 1] = '\0';
 	}
 
+	return Success;
+}
+
+int
+safe_dup2(int oldfd, int newfd)
+{
+	if (dup2(oldfd, newfd) == -1) {
+		warn("dup2");
+		return Failure;
+	}
 	return Success;
 }
 
@@ -372,19 +355,25 @@ setup_redirection(const char *input_file, const char *output_file,
 	if (input_file[0] != '\0') {
 		fd = open(input_file, O_RDONLY);
 		if (fd < 0) {
-			perror("open input file");
+			warn("open input file");
 			return Failure;
 		}
-		dup2(fd, STDIN_FILENO);
+		if (safe_dup2(fd, STDIN_FILENO) == Failure) {
+			close(fd);
+			return Failure;
+		}
 		close(fd);
 	} else {
 		if (!is_waitable) {
 			fd = open("/dev/null", O_RDONLY);
 			if (fd < 0) {
-				perror("open /dev/null");
+				warn("open /dev/null");
 				return Failure;
 			}
-			dup2(fd, STDIN_FILENO);
+			if (safe_dup2(fd, STDIN_FILENO) == Failure) {
+				close(fd);
+				return Failure;
+			}
 			close(fd);
 		}
 	}
@@ -394,10 +383,13 @@ setup_redirection(const char *input_file, const char *output_file,
 
 		fd = open(output_file, flags, 0644);
 		if (fd < 0) {
-			perror("open output file");
+			err(EXIT_FAILURE, "open output file");
 			return Failure;
 		}
-		dup2(fd, STDOUT_FILENO);
+		if (safe_dup2(fd, STDOUT_FILENO) == Failure) {
+			close(fd);
+			return Failure;
+		}
 		close(fd);
 	}
 
@@ -414,8 +406,8 @@ run_command(char *line)
 	char input_file[Maxpath] = "";
 	char output_file[Maxpath] = "";
 
-	if (parse_redirection(line, command, input_file, output_file)
-	    == Failure) {
+	if (parse_redirection(line, command, input_file, output_file) ==
+	    Failure) {
 		return Failure;
 	}
 
@@ -427,8 +419,8 @@ run_command(char *line)
 	}
 
 	if (pid == 0) {
-		if (setup_redirection
-		    (input_file, output_file, is_waitable) == Failure) {
+		if (setup_redirection(input_file, output_file, is_waitable) ==
+		    Failure) {
 			exit(Childfailure);
 		}
 
@@ -444,8 +436,7 @@ run_command(char *line)
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != Success) {
 		fprintf(stderr, "error: command failed\n");
 	}
-    return Success;
-
+	return Success;
 }
 
 int
@@ -496,14 +487,15 @@ sustitute_varenv(char *line, char *output_line, ssize_t output_size)
 			remaining_size -= 1;
 		}
 	}
-    return Success;
+	return Success;
 }
 
 void
 run_shell(void)
 {
 	char line[Maxlinelen];
-	char *full_line = (char *)malloc(MaxOutputlinelen * sizeof(char));
+
+	char full_line[MaxOutputlinelen];
 	int is_interactive = isatty(STDIN_FILENO);
 
 	while (1) {
@@ -516,20 +508,20 @@ run_shell(void)
 				break;
 			} else {
 				warn("Error reading from stdin");
-
 			}
 		}
 
 		treat_line(line);
-		memset(full_line, 0, MaxOutputlinelen);
+
+		memset(full_line, 0, sizeof(full_line));
 
 		if (do_builtins(line) != Success) {
-			sustitute_varenv(line, full_line, MaxOutputlinelen);
-			run_command(full_line);
+			if (sustitute_varenv(line, full_line, MaxOutputlinelen)
+			    == Success) {
+				run_command(full_line);
+			}
 		}
 	}
-
-	free(full_line);
 }
 
 int
